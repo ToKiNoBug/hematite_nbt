@@ -8,9 +8,13 @@ extern crate serde;
 
 extern crate nbt;
 
+use std::collections::BTreeMap;
+use std::convert::TryInto;
 use std::fs::File;
+use std::iter::Map;
 
 use nbt::de::{from_gzip_reader, from_reader};
+use nbt::Value::Compound;
 
 // Include structure definitions.
 include!("data.rs.in");
@@ -185,4 +189,55 @@ fn deserialize_complex_player() {
 fn deserialize_level() {
     let mut file = File::open("tests/level.dat").unwrap();
     let _: Level = from_gzip_reader(&mut file).unwrap();
+}
+
+#[test]
+fn test_types() {
+    let file = File::open("tests/types.nbt").unwrap();
+    let nbt:Result<nbt::Map<String,nbt::Value>,nbt::Error>=nbt::from_gzip_reader(file);
+    let nbt=nbt.unwrap();
+
+    let type_lut=[
+        ("byte","TAG_Byte"),
+        ("short","TAG_Short"),
+        ("int","TAG_Int"),
+        ("long","TAG_Long"),
+        ("float","TAG_Float"),
+        ("double","TAG_Double"),
+        ("string","TAG_String"),
+        ("byte array","TAG_ByteArray"),
+        ("int array","TAG_IntArray"),
+        ("long array","TAG_LongArray"),
+        ("compound","TAG_Compound"),
+        ("list of byte","TAG_List"),
+        ("list of int","TAG_List"),
+        ("list of long","TAG_List"),
+    ];
+
+    let mut mismatch_counter=0;
+    for (key,expected_type) in type_lut {
+        let tag:&nbt::Value=nbt.get(key).unwrap();
+        let mut correct=true;
+        if tag.tag_name()!=expected_type {
+            mismatch_counter += 1;
+            correct=false;
+        }
+        if correct {
+            eprintln!("Type of \"{}\" is {}",key,tag.tag_name());
+        }
+        else {
+            eprintln!("Type of \"{}\" is {}, expected {}",key,tag.tag_name(),expected_type);
+        }
+    }
+
+    if mismatch_counter>0 {
+        panic!("{} types mismatched",mismatch_counter);
+    }
+
+    // let tag_spawn_x=tag_data_comp.get("SpawnX").unwrap();
+    // if tag_spawn_x.id()!=3 {
+    //     panic!("Type of Data/SpawnX is {}, but actually it is TAG_Int",tag_spawn_x.tag_name());
+    // }
+
+    //println!("/Data/SpawnX = {}",)
 }
